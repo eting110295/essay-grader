@@ -1,0 +1,605 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高中作文智慧批改系統 📝✨</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+
+        :root {
+            --primary: #FFB6C1; /* 柔和粉紅 */
+            --primary-hover: #ff9eaa;
+            --secondary: #ADD8E6; /* 柔和水藍 */
+            --secondary-hover: #91cce0;
+            --background: #FFF9FA;
+            --surface: #FFFFFF;
+            --text-main: #4A4A4A;
+            --text-light: #7A7A7A;
+            --danger: #FF6B6B;
+            --success: #51CF66;
+            --border-radius: 16px;
+            --shadow: 0 8px 24px rgba(0,0,0,0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: var(--background);
+            color: var(--text-main);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* Header & Buttons */
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h1 {
+            color: var(--text-main);
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        .btn-group {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(255, 182, 193, 0.4);
+        }
+        button:hover { background-color: var(--primary-hover); transform: translateY(-2px); }
+        button.btn-secondary { background-color: var(--secondary); box-shadow: 0 4px 12px rgba(173, 216, 230, 0.4); }
+        button.btn-secondary:hover { background-color: var(--secondary-hover); }
+        button.btn-danger { background-color: var(--danger); box-shadow: 0 4px 12px rgba(255, 107, 107, 0.4); }
+        button.btn-danger:hover { background-color: #ff5252; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* Card Panels */
+        .card {
+            background: var(--surface);
+            border-radius: var(--border-radius);
+            padding: 25px;
+            box-shadow: var(--shadow);
+            margin-bottom: 25px;
+        }
+
+        /* Form Elements */
+        label { display: block; font-weight: 500; margin-bottom: 8px; }
+        textarea, input[type="text"], select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #eee;
+            border-radius: 12px;
+            font-size: 1rem;
+            margin-bottom: 15px;
+            transition: border-color 0.3s;
+        }
+        textarea:focus, input[type="text"]:focus, select:focus {
+            border-color: var(--secondary);
+            outline: none;
+        }
+        .settings-textarea { height: 150px; font-family: monospace; font-size: 0.9rem; }
+
+        /* Modals (Custom Alerts/Prompts) */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 1000;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            background: var(--surface);
+            padding: 30px;
+            border-radius: var(--border-radius);
+            width: 90%;
+            max-width: 500px;
+            box-shadow: var(--shadow);
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-overlay.active .modal-content { transform: translateY(0); }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-header h2 { margin: 0; font-size: 1.5rem; }
+        .close-btn { background: none; border: none; font-size: 1.5rem; color: var(--text-light); cursor: pointer; box-shadow: none; padding: 0; }
+        .close-btn:hover { color: var(--text-main); background: none; transform: none; }
+
+        /* Toast Notifications */
+        #toast-container { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 2000; display: flex; flex-direction: column; gap: 10px; }
+        .toast {
+            background: var(--text-main); color: white; padding: 12px 24px; border-radius: 50px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-size: 0.95rem;
+            animation: slideUp 0.3s ease forwards, fadeOut 0.3s ease 2.7s forwards;
+        }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+
+        /* Results & Loading */
+        .loading { text-align: center; padding: 20px; color: var(--secondary); font-weight: bold; display: none; }
+        .result-box { background: #fdfbf7; border-left: 4px solid var(--primary); padding: 15px; margin-top: 15px; border-radius: 0 12px 12px 0; white-space: pre-wrap; }
+        
+        /* QR Code */
+        #qr-code-img { max-width: 150px; margin: 15px auto; display: block; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>📝 高中作文智慧批改系統 ✨</h1>
+        <div class="btn-group">
+            <button class="btn-secondary" onclick="ui.openModal('help-modal')">💡 如何設定 Firebase</button>
+            <button onclick="ui.openModal('settings-modal')">⚙️ 設定 Firebase 連線</button>
+        </div>
+    </header>
+
+    <main>
+        <div class="card">
+            <h3>✒️ 開始練習</h3>
+            <label>請選擇題型：</label>
+            <select id="essay-type">
+                <option value="intellectual">知性題 (論說、分析)</option>
+                <option value="emotional">感性題 (抒情、記敘)</option>
+            </select>
+
+            <label>貼上你的作文內容：</label>
+            <textarea id="essay-content" rows="8" placeholder="在此輸入你的作文..."></textarea>
+
+            <label>或上傳手寫稿照片 (自動壓縮)：</label>
+            <input type="file" id="essay-image" accept="image/*" style="margin-bottom: 15px;">
+            <canvas id="image-canvas" style="display:none;"></canvas>
+
+            <button id="submit-btn" style="width: 100%; margin-top: 10px;" onclick="app.submitEssay()">🚀 送出批改</button>
+            
+            <div class="loading" id="loading-indicator">✨ AI 正在用心批閱中，請稍候...</div>
+            <div id="result-area" style="display: none;">
+                <h4>📊 批改結果</h4>
+                <div class="result-box" id="result-text"></div>
+            </div>
+        </div>
+
+        <div class="card" id="history-panel" style="display: none;">
+            <h3>📚 你的學習歷程</h3>
+            <div id="history-list"></div>
+        </div>
+    </main>
+</div>
+
+<div class="modal-overlay" id="help-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>💡 如何設定系統</h2>
+            <button class="close-btn" onclick="ui.closeModal('help-modal')">&times;</button>
+        </div>
+        <div style="line-height: 1.8;">
+            <p>歡迎使用！這是一個完全免費且運行在您自己資料庫的應用程式。</p>
+            <ol>
+                <li>請先前往 <a href="https://console.firebase.google.com/" target="_blank">Firebase Console</a> 建立專案。</li>
+                <li>啟用 <b>Firestore Database</b> 與 <b>Anonymous Authentication (匿名登入)</b>。</li>
+                <li>在專案設定中取得網頁應用程式的 <code>firebaseConfig</code>。</li>
+                <li>點擊首頁的「設定 Firebase 連線」按鈕，將設定貼入即可啟用所有功能。</li>
+            </ol>
+            <p><b>✨ 關於 AI 批改</b>：本系統預設支援 Gemini Canvas 免費預覽環境測試！</p>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="settings-modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>⚙️ 系統設定</h2>
+            <button class="close-btn" onclick="ui.closeModal('settings-modal')">&times;</button>
+        </div>
+        
+        <label>1. 貼上 Firebase 設定：</label>
+        <p style="font-size: 0.85rem; color: var(--text-light); margin-top: 0;">請從您的 Firebase 專案中，複製 firebaseConfig 物件 { 和 } 之間的六行內容 (Key: Value)，貼到下方。<b>請勿貼上大括號 {} 或變數宣告，只需貼上 apiKey: "..." 到 appId: "..." 的內容。</b></p>
+        <textarea id="config-input" class="settings-textarea" placeholder='apiKey: "AIza...",&#10;authDomain: "...",&#10;projectId: "...",&#10;storageBucket: "...",&#10;messagingSenderId: "...",&#10;appId: "..."'></textarea>
+        
+        <div style="margin: 20px 0; border-top: 1px dashed #ccc; padding-top: 20px;">
+            <label>2. AI 批改引擎設定：</label>
+            <p style="font-size: 0.85rem; color: var(--text-light); margin-top: 0;">Gemini Canvas 環境可免 Key 直接測試，若在外部部署請切換至自訂模式。</p>
+            <select id="ai-mode" onchange="app.toggleAiKeyInput()">
+                <option value="default">預設免費模式 (Canvas Environment)</option>
+                <option value="custom">自訂 Key 模式 (Custom)</option>
+            </select>
+            <input type="text" id="ai-custom-key" placeholder="貼上您的 Gemini API Key..." style="display:none; margin-top: 10px;">
+        </div>
+
+        <div class="btn-group" style="margin-top: 20px;">
+            <button onclick="app.saveSettings()">💾 儲存設定</button>
+            <button class="btn-danger" onclick="app.resetSettings()">⚠️ 清除本機設定</button>
+        </div>
+
+        <div style="margin-top: 30px; border-top: 1px dashed #ccc; padding-top: 20px;">
+            <h4>🔗 產生分享連結 (包含設定)</h4>
+            <button class="btn-secondary" onclick="app.generateShareLink()">產生 QR Code 與連結</button>
+            <img id="qr-code-img" style="display:none;" alt="QR Code">
+            <input type="text" id="share-link-input" readonly style="display:none; font-size:0.8rem;" onclick="this.select(); document.execCommand('copy'); ui.showToast('網址已複製！')">
+        </div>
+    </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // ==========================================
+    // 優先級 2：程式碼寫死 (Hardcoded) 預設值
+    // 使用者請直接修改上述六行引號內的數值，填入您真實的 Firebase 設定即可 (無需更動變數名稱或大括號)
+    // ==========================================
+    let firebaseConfig = {
+        apiKey: "demo",
+        authDomain: "demo",
+        projectId: "demo",
+        storageBucket: "demo",
+        messagingSenderId: "demo",
+        appId: "demo"
+    };
+
+    // UI 與共用工具
+    window.ui = {
+        openModal: (id) => document.getElementById(id).classList.add('active'),
+        closeModal: (id) => document.getElementById(id).classList.remove('active'),
+        showToast: (msg) => {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        },
+        customAlert: (msg) => {
+            // 使用 Toast 取代原生 alert
+            window.ui.showToast(`提示: ${msg}`);
+        }
+    };
+
+    // 應用程式主邏輯
+    window.app = {
+        db: null,
+        auth: null,
+        user: null,
+        isConfigured: false,
+
+        init: async function() {
+            // 優先級 1：網址參數匯入
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('config')) {
+                try {
+                    const decoded = atob(urlParams.get('config'));
+                    const parsedConfig = JSON.parse(decoded);
+                    if (parsedConfig.apiKey) {
+                        localStorage.setItem('firebaseConfig', JSON.stringify(parsedConfig));
+                        window.history.replaceState({}, document.title, window.location.pathname);
+                        ui.showToast('✅ 已從網址成功匯入並儲存設定！');
+                    }
+                } catch (e) {
+                    ui.showToast('❌ 網址設定解析失敗');
+                }
+            }
+
+            // 優先級 3：介面動態設定 (LocalStorage)
+            if (firebaseConfig.apiKey === "demo") {
+                const lsConfig = localStorage.getItem('firebaseConfig');
+                if (lsConfig) {
+                    try { firebaseConfig = JSON.parse(lsConfig); } catch (e) {}
+                }
+            }
+
+            // 檢查是否已設定
+            this.isConfigured = firebaseConfig.apiKey !== "demo" && firebaseConfig.apiKey !== "";
+
+            // 初始化設定面板的 AI 欄位
+            const aiMode = localStorage.getItem('ai_mode') || 'default';
+            document.getElementById('ai-mode').value = aiMode;
+            if (aiMode === 'custom') {
+                document.getElementById('ai-custom-key').style.display = 'block';
+                document.getElementById('ai-custom-key').value = localStorage.getItem('custom_api_key') || "";
+            }
+
+            // 若有設定，初始化 Firebase
+            if (this.isConfigured) {
+                try {
+                    const app = initializeApp(firebaseConfig);
+                    this.auth = getAuth(app);
+                    this.db = getFirestore(app);
+                    
+                    // 只有在 Firebase 初始化成功後，才執行匿名登入
+                    signInAnonymously(this.auth).catch(err => {
+                        console.error("Auth Error:", err);
+                        ui.showToast('登入失敗，請檢查 Firebase Auth 設定。');
+                    });
+
+                    onAuthStateChanged(this.auth, (user) => {
+                        if (user) {
+                            this.user = user;
+                            this.loadHistory();
+                            document.getElementById('history-panel').style.display = 'block';
+                            ui.showToast('✅ Firebase 連線成功！');
+                        }
+                    });
+                } catch (err) {
+                    console.error("Firebase Init Error:", err);
+                    ui.showToast('❌ Firebase 初始化失敗，請檢查設定值。');
+                    this.isConfigured = false;
+                }
+            } else {
+                ui.showToast('👀 尚未設定 Firebase，請點擊上方按鈕進行設定。');
+            }
+        },
+
+        // 設定解析與儲存
+        saveSettings: function() {
+            const text = document.getElementById('config-input').value;
+            const keys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+            const newConfig = {};
+            let validCount = 0;
+
+            // 強健的解析邏輯：忽略大括號、變數名，只抓 key: value
+            keys.forEach(key => {
+                const regex = new RegExp(`${key}\\s*["']?\\s*:\\s*["']([^"']+)["']`);
+                const match = text.match(regex);
+                if (match) {
+                    newConfig[key] = match[1];
+                    validCount++;
+                }
+            });
+
+            if (validCount === 6) {
+                localStorage.setItem('firebaseConfig', JSON.stringify(newConfig));
+                
+                // 儲存 AI 設定
+                const aiMode = document.getElementById('ai-mode').value;
+                localStorage.setItem('ai_mode', aiMode);
+                if (aiMode === 'custom') {
+                    localStorage.setItem('custom_api_key', document.getElementById('ai-custom-key').value);
+                }
+
+                ui.showToast('✅ 設定已儲存，正在重新整理...');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                ui.customAlert('解析失敗。請確認貼上了完整的六行設定，且包含引號。');
+            }
+        },
+
+        resetSettings: function() {
+            // 使用 Custom 邏輯代替 confirm
+            localStorage.removeItem('firebaseConfig');
+            localStorage.removeItem('ai_mode');
+            localStorage.removeItem('custom_api_key');
+            ui.showToast('🗑️ 設定已清除，正在重新整理...');
+            setTimeout(() => location.reload(), 1000);
+        },
+
+        toggleAiKeyInput: function() {
+            const mode = document.getElementById('ai-mode').value;
+            document.getElementById('ai-custom-key').style.display = mode === 'custom' ? 'block' : 'none';
+        },
+
+        generateShareLink: function() {
+            if (!this.isConfigured) {
+                ui.customAlert('請先完成並儲存設定後再產生分享連結！');
+                return;
+            }
+            const base64Config = btoa(JSON.stringify(firebaseConfig));
+            const shareUrl = `${window.location.origin}${window.location.pathname}?config=${base64Config}`;
+            
+            const qrImg = document.getElementById('qr-code-img');
+            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(shareUrl)}`;
+            qrImg.style.display = 'block';
+
+            const linkInput = document.getElementById('share-link-input');
+            linkInput.value = shareUrl;
+            linkInput.style.display = 'block';
+        },
+
+        // 圖片轉 Base64
+        processImage: async function(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.getElementById('image-canvas');
+                        const ctx = canvas.getContext('2d');
+                        // 等比例壓縮至寬度 800px 以下
+                        const MAX_WIDTH = 800;
+                        let width = img.width;
+                        let height = img.height;
+                        if (width > MAX_WIDTH) {
+                            height = Math.floor(height * (MAX_WIDTH / width));
+                            width = MAX_WIDTH;
+                        }
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.drawImage(img, 0, 0, width, height);
+                        // 轉為 Base64 字串
+                        resolve(canvas.toDataURL('image/jpeg', 0.8));
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        },
+
+        // 取得 AI 提示詞 (動態準則匹配)
+        getPrompt: async function(type) {
+            let promptText = type === 'intellectual' 
+                ? "你是一位高中大考閱卷委員。請針對這篇【知性題】作文進行評分。請從「切題度、結構邏輯、修辭技巧」給予 1-25 級分的評分，並指出語法錯誤或論點盲點，給予具體修改建議。"
+                : "你是一位高中大考閱卷委員。請針對這篇【感性題】作文進行評分。請從「切題度、情感表達、修辭技巧」給予 1-25 級分的評分，並指出遣詞用字的盲點，給予具體修改建議。";
+            
+            // 嘗試從 Firestore 讀取管理員設定的動態提示詞
+            if (this.db) {
+                try {
+                    const promptDoc = await getDoc(doc(this.db, 'config', 'prompts'));
+                    if (promptDoc.exists() && promptDoc.data()[type]) {
+                        promptText = promptDoc.data()[type];
+                    }
+                } catch(e) { console.log("使用預設提示詞"); }
+            }
+            return promptText;
+        },
+
+        submitEssay: async function() {
+            if (!this.isConfigured || !this.user) {
+                ui.openModal('settings-modal');
+                ui.customAlert('請先完成 Firebase 設定才能進行批改！');
+                return;
+            }
+
+            const content = document.getElementById('essay-content').value;
+            const imgFile = document.getElementById('essay-image').files[0];
+
+            if (!content.trim() && !imgFile) {
+                ui.customAlert('請輸入作文內容或上傳照片！');
+                return;
+            }
+
+            const type = document.getElementById('essay-type').value;
+            document.getElementById('loading-indicator').style.display = 'block';
+            document.getElementById('result-area').style.display = 'none';
+            document.getElementById('submit-btn').disabled = true;
+
+            try {
+                // 處理圖片 Base64
+                let imageBase64 = null;
+                let geminiParts = [{"text": content}];
+                
+                if (imgFile) {
+                    imageBase64 = await this.processImage(imgFile);
+                    // 移除 data:image/jpeg;base64, 供 Gemini 使用
+                    const rawBase64 = imageBase64.split(',')[1];
+                    geminiParts.push({
+                        "inlineData": { "mimeType": "image/jpeg", "data": rawBase64 }
+                    });
+                }
+
+                const systemPrompt = await this.getPrompt(type);
+                geminiParts.unshift({"text": `系統指示：${systemPrompt}\n\n學生作品如下：\n`});
+
+                // API 呼叫邏輯 (雙模式支援)
+                const aiMode = localStorage.getItem('ai_mode') || 'default';
+                let apiKey = "";
+                if (aiMode === 'custom') {
+                    apiKey = localStorage.getItem('custom_api_key') || "";
+                    if (!apiKey) { ui.customAlert("請先在設定中輸入 API Key"); throw new Error("No API Key"); }
+                } else {
+                    // 預設模式：使用空字串，讓 Canvas 環境自動攔截處理
+                    apiKey = ""; 
+                }
+
+                // 發送請求時，務必允許 apiKey 為空，且必須使用 preview 模型
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: geminiParts }]
+                    })
+                });
+
+                if (!response.ok) throw new Error("AI API 請求失敗，請檢查環境或 Key");
+                
+                const data = await response.json();
+                const feedback = data.candidates[0].content.parts[0].text;
+
+                // 顯示結果
+                document.getElementById('result-text').textContent = feedback;
+                document.getElementById('result-area').style.display = 'block';
+
+                // 學習歷程追蹤：紀錄於 Firestore
+                await addDoc(collection(this.db, `users/${this.user.uid}/history`), {
+                    type: type,
+                    content: content.substring(0, 100) + '...', // 只存前100字預覽
+                    imageAttached: !!imageBase64,
+                    feedback: feedback,
+                    timestamp: serverTimestamp()
+                });
+
+                this.loadHistory();
+                ui.showToast('✅ 批改完成並已儲存至歷程！');
+
+            } catch (error) {
+                console.error(error);
+                ui.customAlert('批改過程中發生錯誤：' + error.message);
+            } finally {
+                document.getElementById('loading-indicator').style.display = 'none';
+                document.getElementById('submit-btn').disabled = false;
+            }
+        },
+
+        loadHistory: async function() {
+            if (!this.db || !this.user) return;
+            const historyList = document.getElementById('history-list');
+            historyList.innerHTML = '<div style="text-align:center; color:#ccc;">載入中...</div>';
+
+            try {
+                const q = query(collection(this.db, `users/${this.user.uid}/history`), orderBy('timestamp', 'desc'));
+                const snapshot = await getDocs(q);
+                historyList.innerHTML = '';
+
+                if (snapshot.empty) {
+                    historyList.innerHTML = '<p style="color:var(--text-light); text-align:center;">目前還沒有批改紀錄喔！趕快練習一篇吧！</p>';
+                    return;
+                }
+
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const date = data.timestamp ? data.timestamp.toDate().toLocaleString() : '剛剛';
+                    const div = document.createElement('div');
+                    div.style.padding = '10px';
+                    div.style.borderBottom = '1px solid #eee';
+                    div.innerHTML = `
+                        <strong>${data.type === 'intellectual' ? '知性題' : '感性題'}</strong> - <span style="color:#888; font-size:0.85rem;">${date}</span>
+                        <p style="margin:5px 0; font-size:0.9rem;">${data.content}</p>
+                    `;
+                    historyList.appendChild(div);
+                });
+            } catch (err) {
+                console.error("Load history error", err);
+                historyList.innerHTML = '<p style="color:red;">無法載入歷史紀錄，請檢查安全規則。</p>';
+            }
+        }
+    };
+
+    // 啟動應用程式
+    window.onload = () => app.init();
+</script>
+</body>
+</html>
