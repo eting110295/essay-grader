@@ -266,13 +266,13 @@
     // 使用者請直接修改上述六行引號內的數值，填入您真實的 Firebase 設定即可 (無需更動變數名稱或大括號)
     // ==========================================
     let firebaseConfig = {
-        apiKey: "AIzaSyD2BVKl8nCxus5M4aP9THzV69OwOt3sl5o",
-        authDomain: "tintin0628-3516e.firebaseapp.com",
-        projectId: "tintin0628-3516e",
-        storageBucket: "tintin0628-3516e.firebasestorage.app",
-        messagingSenderId: "831596707581",
-        appId: "1:831596707581:web:c8d87d8f659c5af2dc8894",
-        measurementId: "G-458LS99LST"
+        apiKey: "demo",
+        authDomain: "",
+        projectId: "",
+        storageBucket: "",
+        messagingSenderId: "",
+        appId: "",
+        measurementId: ""
     };
 
     // UI 與共用工具
@@ -369,28 +369,41 @@
 
         // 設定解析與儲存
         saveSettings: function() {
+            // 儲存 AI 引擎設定
+            const aiMode = document.getElementById('ai-mode').value;
+            const customKey = document.getElementById('ai-custom-key').value.trim();
+            localStorage.setItem('ai_mode', aiMode);
+            localStorage.setItem('custom_api_key', customKey);
+
             const text = document.getElementById('config-input').value;
             const keys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
             const newConfig = {};
             let validCount = 0;
 
-            // 強健的解析邏輯：忽略大括號、變數名，只抓 key: value
-            keys.forEach(key => {
-                const regex = new RegExp(`${key}\\s*["']?\\s*:\\s*["']([^"']+)["']`);
-                const match = text.match(regex);
-                if (match) {
-                    newConfig[key] = match[1];
-                    validCount++;
-                }
-            });
+            // 如果使用者有輸入 Firebase 設定，才進行解析與儲存
+            if (text.trim() !== "") {
+                keys.forEach(key => {
+                    const regex = new RegExp(`${key}\\s*["']?\\s*:\\s*["']([^"']+)["']`);
+                    const match = text.match(regex);
+                    if (match) {
+                        newConfig[key] = match[1];
+                        validCount++;
+                    }
+                });
 
-            if (validCount === 6) {
-                localStorage.setItem('firebaseConfig', JSON.stringify(newConfig));
-                ui.showToast('✅ 設定已儲存，正在重新整理...');
-                setTimeout(() => location.reload(), 1000);
-            } else {
-                ui.customAlert('解析失敗。請確認貼上了完整的六行設定，且包含引號。');
+                if (validCount === 6) {
+                    localStorage.setItem('firebaseConfig', JSON.stringify(newConfig));
+                    ui.showToast('✅ 設定已儲存，正在重新整理...');
+                    setTimeout(() => location.reload(), 1000);
+                    return;
+                } else {
+                    ui.customAlert('Firebase 設定解析失敗。請確認貼上了完整的六行設定，且包含引號。');
+                    return;
+                }
             }
+
+            ui.showToast('✅ 設定已儲存，正在重新整理...');
+            setTimeout(() => location.reload(), 1000);
         },
 
         resetSettings: function() {
@@ -571,10 +584,21 @@
                 const systemPrompt = await this.getPrompt(type);
                 geminiParts.unshift({"text": `系統指示：${systemPrompt}\n\n學生作品如下：\n`});
 
-                // 直接套用您的專屬 AI API Key，不需要再從網頁設定了！
-                let apiKey = "AIzaSyAHSX4xpUxXQH-TzuEzjjRJFYBycbvutwM";
+                // 讀取設定的 AI 模式與自訂 Key，安全存放在本地瀏覽器中，不寫死程式碼避開 GitHub 警告
+                const aiMode = localStorage.getItem('ai_mode') || 'default';
+                let apiKey = "";
+                if (aiMode === 'custom') {
+                    apiKey = localStorage.getItem('custom_api_key') || "";
+                }
 
-                // 發送請求時，務必允許 apiKey 為空，且必須使用 preview 模型
+                if (!apiKey) {
+                    ui.customAlert('請點擊右上角「設定 Firebase 連線」，切換為「自訂 Key 模式 (Custom)」，然後填入您的 Gemini API Key！');
+                    document.getElementById('loading-indicator').style.display = 'none';
+                    document.getElementById('submit-btn').disabled = false;
+                    return;
+                }
+
+                // 發送請求時，使用自訂的 API 金鑰與 gemini-3.5-flash 模型
                 const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
                 
                 const response = await fetch(url, {
