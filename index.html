@@ -308,7 +308,18 @@
                     const decoded = atob(urlParams.get('config'));
                     const parsedConfig = JSON.parse(decoded);
                     if (parsedConfig.apiKey) {
-                        localStorage.setItem('firebaseConfig', JSON.stringify(parsedConfig));
+                        // 拆分並儲存 Firebase 設定
+                        const fbKeys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId', 'measurementId'];
+                        const fbConfig = {};
+                        fbKeys.forEach(k => { if (parsedConfig[k] !== undefined) fbConfig[k] = parsedConfig[k]; });
+                        localStorage.setItem('firebaseConfig', JSON.stringify(fbConfig));
+
+                        // 匯入並儲存 AI 引擎設定
+                        if (parsedConfig.aiMode) {
+                            localStorage.setItem('ai_mode', parsedConfig.aiMode);
+                            localStorage.setItem('custom_api_key', parsedConfig.customApiKey || "");
+                        }
+
                         window.history.replaceState({}, document.title, window.location.pathname);
                         ui.showToast('✅ 已從網址成功匯入並儲存設定！');
                     }
@@ -425,7 +436,13 @@
                 ui.customAlert('請先完成並儲存設定後再產生分享連結！');
                 return;
             }
-            const base64Config = btoa(JSON.stringify(firebaseConfig));
+            // 拷貝目前的 Firebase 設定
+            const configObj = { ...firebaseConfig };
+            // 打包當前的 AI 引擎設定一同分享
+            configObj.aiMode = localStorage.getItem('ai_mode') || 'default';
+            configObj.customApiKey = localStorage.getItem('custom_api_key') || "";
+
+            const base64Config = btoa(JSON.stringify(configObj));
             const shareUrl = `${window.location.origin}${window.location.pathname}?config=${base64Config}`;
             
             const qrImg = document.getElementById('qr-code-img');
