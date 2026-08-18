@@ -163,8 +163,10 @@
 <div class="container">
     <header>
         <h1>📝 高中作文智慧批改系統 ✨</h1>
-        <div class="user-info">
-            <span id="user-status" style="font-size: 0.9rem; margin-right: 15px; color: #666;">🔄 連線中...</span>
+        <div class="user-info" style="display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 10px; margin-bottom: 20px;">
+            <span id="user-status" style="font-size: 0.9rem; color: #666; font-weight: 500;">🔄 連線中...</span>
+            <button class="btn-secondary" style="font-size: 0.85rem; padding: 5px 15px; box-shadow: none;" onclick="ui.openModal('help-modal')">💡 使用說明</button>
+            <button style="font-size: 0.85rem; padding: 5px 15px; box-shadow: none;" onclick="ui.openModal('settings-modal')">⚙️ 設定與分享</button>
         </div>
     </header>
 
@@ -358,6 +360,8 @@
                     signInAnonymously(this.auth).catch(err => {
                         console.error("Auth Error:", err);
                         ui.showToast('登入失敗，請檢查 Firebase Auth 設定。');
+                        document.getElementById('user-status').textContent = '❌ 連線失敗 (登入失敗)';
+                        document.getElementById('user-status').style.color = '#FF6B6B';
                     });
 
                     onAuthStateChanged(this.auth, (user) => {
@@ -366,15 +370,21 @@
                             this.loadHistory();
                             document.getElementById('history-panel').style.display = 'block';
                             ui.showToast('✅ Firebase 連線成功！');
+                            document.getElementById('user-status').textContent = '✅ 連線成功';
+                            document.getElementById('user-status').style.color = '#51CF66';
                         }
                     });
                 } catch (err) {
                     console.error("Firebase Init Error:", err);
                     ui.showToast('❌ Firebase 初始化失敗，請檢查設定值。');
                     this.isConfigured = false;
+                    document.getElementById('user-status').textContent = '❌ 初始化失敗';
+                    document.getElementById('user-status').style.color = '#FF6B6B';
                 }
             } else {
                 ui.showToast('👀 尚未設定 Firebase，請點擊上方按鈕進行設定。');
+                document.getElementById('user-status').textContent = '⚠️ 尚未設定 Firebase';
+                document.getElementById('user-status').style.color = '#7A7A7A';
             }
         },
 
