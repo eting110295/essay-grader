@@ -1,9 +1,13 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>高中作文智慧批改系統 📝✨</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
 
@@ -159,26 +163,25 @@
 <div class="container">
     <header>
         <h1>📝 高中作文智慧批改系統 ✨</h1>
-        <div class="btn-group">
-            <button class="btn-secondary" onclick="ui.openModal('help-modal')">💡 如何設定 Firebase</button>
-            <button onclick="ui.openModal('settings-modal')">⚙️ 設定 Firebase 連線</button>
+        <div class="user-info">
+            <span id="user-status" style="font-size: 0.9rem; margin-right: 15px; color: #666;">🔄 連線中...</span>
         </div>
     </header>
 
     <main>
         <div class="card">
-            <h3>✒️ 開始練習</h3>
-            <label>請選擇題型：</label>
-            <select id="essay-type">
-                <option value="intellectual">知性題 (論說、分析)</option>
-                <option value="emotional">感性題 (抒情、記敘)</option>
-            </select>
+                <label style="display: block; margin-bottom: 8px; font-weight: bold;">📝 選擇題型：</label>
+                <select id="essay-type" style="width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem;">
+                    <option value="intellectual">國寫知性題 (論說、分析)</option>
+                    <option value="emotional">國寫感性題 (抒情、敘事)</option>
+                    <option value="english">英文作文 (文法、結構、字彙)</option>
+                </select>
 
             <label>貼上你的作文內容：</label>
             <textarea id="essay-content" rows="8" placeholder="在此輸入你的作文..."></textarea>
 
-            <label>或上傳手寫稿照片 (自動壓縮)：</label>
-            <input type="file" id="essay-image" accept="image/*" style="margin-bottom: 15px;">
+            <label>或上傳手寫稿照片 / PDF 檔 (自動處理)：</label>
+            <input type="file" id="essay-image" accept="image/*, application/pdf" style="margin-bottom: 15px;">
             <canvas id="image-canvas" style="display:none;"></canvas>
 
             <button id="submit-btn" style="width: 100%; margin-top: 10px;" onclick="app.submitEssay()">🚀 送出批改</button>
@@ -263,12 +266,13 @@
     // 使用者請直接修改上述六行引號內的數值，填入您真實的 Firebase 設定即可 (無需更動變數名稱或大括號)
     // ==========================================
     let firebaseConfig = {
-        apiKey: "demo",
-        authDomain: "demo",
-        projectId: "demo",
-        storageBucket: "demo",
-        messagingSenderId: "demo",
-        appId: "demo"
+        apiKey: "AIzaSyD2BVKl8nCxus5M4aP9THzV69OwOt3sl5o",
+        authDomain: "tintin0628-3516e.firebaseapp.com",
+        projectId: "tintin0628-3516e",
+        storageBucket: "tintin0628-3516e.firebasestorage.app",
+        messagingSenderId: "831596707581",
+        appId: "1:831596707581:web:c8d87d8f659c5af2dc8894",
+        measurementId: "G-458LS99LST"
     };
 
     // UI 與共用工具
@@ -382,14 +386,6 @@
 
             if (validCount === 6) {
                 localStorage.setItem('firebaseConfig', JSON.stringify(newConfig));
-                
-                // 儲存 AI 設定
-                const aiMode = document.getElementById('ai-mode').value;
-                localStorage.setItem('ai_mode', aiMode);
-                if (aiMode === 'custom') {
-                    localStorage.setItem('custom_api_key', document.getElementById('ai-custom-key').value);
-                }
-
                 ui.showToast('✅ 設定已儲存，正在重新整理...');
                 setTimeout(() => location.reload(), 1000);
             } else {
@@ -430,55 +426,103 @@
 
         // 圖片轉 Base64
         processImage: async function(file) {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        const canvas = document.getElementById('image-canvas');
-                        const ctx = canvas.getContext('2d');
-                        // 等比例壓縮至寬度 800px 以下
-                        const MAX_WIDTH = 800;
-                        let width = img.width;
-                        let height = img.height;
-                        if (width > MAX_WIDTH) {
-                            height = Math.floor(height * (MAX_WIDTH / width));
-                            width = MAX_WIDTH;
+            return new Promise((resolve, reject) => {
+                if (file.type === 'application/pdf') {
+                    const reader = new FileReader();
+                    reader.onload = async function(e) {
+                        try {
+                            const typedarray = new Uint8Array(e.target.result);
+                            const pdf = await pdfjsLib.getDocument(typedarray).promise;
+                            const page = await pdf.getPage(1);
+                            const viewport = page.getViewport({ scale: 1.5 });
+                            const canvas = document.getElementById('image-canvas');
+                            const ctx = canvas.getContext('2d');
+                            canvas.width = viewport.width;
+                            canvas.height = viewport.height;
+                            
+                            await page.render({
+                                canvasContext: ctx,
+                                viewport: viewport
+                            }).promise;
+                            
+                            // 轉為 Base64 字串
+                            resolve(canvas.toDataURL('image/jpeg', 0.8));
+                        } catch (err) {
+                            reject(new Error("PDF 轉換失敗，請確認檔案是否損毀。"));
                         }
-                        canvas.width = width;
-                        canvas.height = height;
-                        ctx.drawImage(img, 0, 0, width, height);
-                        // 轉為 Base64 字串
-                        resolve(canvas.toDataURL('image/jpeg', 0.8));
                     };
-                    img.src = e.target.result;
-                };
-                reader.readAsDataURL(file);
+                    reader.onerror = () => reject(new Error("讀取 PDF 失敗"));
+                    reader.readAsArrayBuffer(file);
+                } else {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.getElementById('image-canvas');
+                            const ctx = canvas.getContext('2d');
+                            // 等比例壓縮至寬度 800px 以下
+                            const MAX_WIDTH = 800;
+                            let width = img.width;
+                            let height = img.height;
+                            if (width > MAX_WIDTH) {
+                                height = Math.floor(height * (MAX_WIDTH / width));
+                                width = MAX_WIDTH;
+                            }
+                            canvas.width = width;
+                            canvas.height = height;
+                            ctx.drawImage(img, 0, 0, width, height);
+                            // 轉為 Base64 字串
+                            resolve(canvas.toDataURL('image/jpeg', 0.8));
+                        };
+                        img.onerror = () => {
+                            reject(new Error("無法讀取圖片，請確認上傳的是圖片格式 (如 jpg, png)，而不是 PDF 或其他檔案。"));
+                        };
+                        img.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
             });
         },
 
-        // 取得 AI 提示詞 (動態準則匹配)
         getPrompt: async function(type) {
-            let promptText = type === 'intellectual' 
-                ? "你是一位高中大考閱卷委員。請針對這篇【知性題】作文進行評分。請從「切題度、結構邏輯、修辭技巧」給予 1-25 級分的評分，並指出語法錯誤或論點盲點，給予具體修改建議。"
-                : "你是一位高中大考閱卷委員。請針對這篇【感性題】作文進行評分。請從「切題度、情感表達、修辭技巧」給予 1-25 級分的評分，並指出遣詞用字的盲點，給予具體修改建議。";
-            
-            // 嘗試從 Firestore 讀取管理員設定的動態提示詞
-            if (this.db) {
-                try {
-                    const promptDoc = await getDoc(doc(this.db, 'config', 'prompts'));
-                    if (promptDoc.exists() && promptDoc.data()[type]) {
-                        promptText = promptDoc.data()[type];
-                    }
-                } catch(e) { console.log("使用預設提示詞"); }
+            if (type === 'english') {
+                return `你是一位專業的台灣學測英文寫作閱卷委員。請針對這篇【英文作文】進行嚴謹且符合大考標準的評分。
+【評分總分：滿分 20 分】
+請從以下四個面向（各佔 5 分）給予評分，並提供詳細的分析與建議：
+1. 內容 (Content, 1-5分)
+2. 組織 (Organization, 1-5分)
+3. 國文/英文用字選擇 (Vocabulary, 1-5分)
+4. 文法句型 (Language Use, 1-5分)
+
+【大考中心給分參考】
+- A等 (15-20分)：內容充實且完全切題、組織結構連貫完整、字彙豐富且精確、文法句型多樣化且幾乎無誤。大考中心公布的「佳作」均在此等第。優秀作文即使有極少數小筆誤，也應給予 16-19 分之高分。
+- B等 (10-14分)：內容尚可、組織大致完整、字彙與文法有部分錯誤但尚不影響理解。
+- C等 (5-9分)：內容貧乏或離題、結構鬆散、用字與句型單調且錯誤繁多。
+- D等 (0-4分)：字數嚴重不足或幾乎無法理解。
+
+請先列出四面向分項分數與總分，接著指出具體文法、拼字、或中式英文（Chinglish）的盲點，並給予更地道（Native）的寫法建議。`;
             }
-            return promptText;
+            
+            const isIntellectual = type === 'intellectual';
+            return `你是一位台灣學測國文寫作（國寫）閱卷委員。請針對這篇【${isIntellectual ? '知性題' : '感性題'}】作文進行符合大考評選標準的閱卷評分。
+【評分總分：滿分 25 分】
+評分等第標準如下：
+- A+等 (22-25分)：見解獨到、論證極為嚴密（知性）或情感真摯且渲染力極強（感性）、結構嚴謹、文筆流暢優美。大考中心公布之特優佳作在此等第。
+- A等 (18-21分)：立場明確、論述合理流暢（知性）或情感表達自然（感性）、結構完整、文筆通順。一般大考中心公布之佳作多落在 19-21 分。優秀作文即使有微小瑕疵，亦不應過度扣分。
+- B+等 (15-17分)：符合題意、論點尚可、結構大致完整。
+- B等 (12-14分)：論述平淡、情感流於俗套、文筆平庸。
+- C等 (1-11分)：離題、結構混亂、語病極多。
+
+請先給出【得分】與【等第】，並從「${isIntellectual ? '審題切題度、結構與邏輯論證、修辭與遣詞用字' : '審題切題度、情感與意象表達、修辭與表現手法'}」三個面向進行詳細分析，給予學生具體的修改與提升建議。`;
         },
 
         submitEssay: async function() {
-            if (!this.isConfigured || !this.user) {
-                ui.openModal('settings-modal');
-                ui.customAlert('請先完成 Firebase 設定才能進行批改！');
+            if (!this.isConfigured) {
+                ui.customAlert('Firebase 尚未正確設定！');
+                return;
+            }
+            if (!this.user) {
+                ui.customAlert('系統正在連線中，請稍等一秒後再點擊送出...');
                 return;
             }
 
@@ -496,35 +540,42 @@
             document.getElementById('submit-btn').disabled = true;
 
             try {
-                // 處理圖片 Base64
+                // 處理圖片/PDF Base64
                 let imageBase64 = null;
                 let geminiParts = [{"text": content}];
                 
                 if (imgFile) {
-                    imageBase64 = await this.processImage(imgFile);
-                    // 移除 data:image/jpeg;base64, 供 Gemini 使用
-                    const rawBase64 = imageBase64.split(',')[1];
-                    geminiParts.push({
-                        "inlineData": { "mimeType": "image/jpeg", "data": rawBase64 }
-                    });
+                    if (imgFile.type === 'application/pdf') {
+                        // PDF 檔直接轉為 Base64 傳給 Gemini，免用 pdf.js 轉圖片，避開本地 file:/// 的 CORS 阻擋與當機問題
+                        const pdfBase64 = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => resolve(e.target.result);
+                            reader.onerror = (err) => reject(new Error("讀取 PDF 檔案失敗"));
+                            reader.readAsDataURL(imgFile);
+                        });
+                        const rawBase64 = pdfBase64.split(',')[1];
+                        geminiParts.push({
+                            "inlineData": { "mimeType": "application/pdf", "data": rawBase64 }
+                        });
+                        imageBase64 = pdfBase64; // 用於歷史紀錄判斷
+                    } else {
+                        imageBase64 = await this.processImage(imgFile);
+                        // 移除 data:image/jpeg;base64, 供 Gemini 使用
+                        const rawBase64 = imageBase64.split(',')[1];
+                        geminiParts.push({
+                            "inlineData": { "mimeType": "image/jpeg", "data": rawBase64 }
+                        });
+                    }
                 }
 
                 const systemPrompt = await this.getPrompt(type);
                 geminiParts.unshift({"text": `系統指示：${systemPrompt}\n\n學生作品如下：\n`});
 
-                // API 呼叫邏輯 (雙模式支援)
-                const aiMode = localStorage.getItem('ai_mode') || 'default';
-                let apiKey = "";
-                if (aiMode === 'custom') {
-                    apiKey = localStorage.getItem('custom_api_key') || "";
-                    if (!apiKey) { ui.customAlert("請先在設定中輸入 API Key"); throw new Error("No API Key"); }
-                } else {
-                    // 預設模式：使用空字串，讓 Canvas 環境自動攔截處理
-                    apiKey = ""; 
-                }
+                // 直接套用您的專屬 AI API Key，不需要再從網頁設定了！
+                let apiKey = "AIzaSyAHSX4xpUxXQH-TzuEzjjRJFYBycbvutwM";
 
                 // 發送請求時，務必允許 apiKey 為空，且必須使用 preview 模型
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`;
                 
                 const response = await fetch(url, {
                     method: 'POST',
@@ -534,7 +585,15 @@
                     })
                 });
 
-                if (!response.ok) throw new Error("AI API 請求失敗，請檢查環境或 Key");
+                if (!response.ok) {
+                    const errText = await response.text();
+                    let errMsg = response.statusText;
+                    try { 
+                        const errJson = JSON.parse(errText); 
+                        errMsg = errJson.error.message; 
+                    } catch(e) {}
+                    throw new Error(`(${response.status}) ${errMsg}`);
+                }
                 
                 const data = await response.json();
                 const feedback = data.candidates[0].content.parts[0].text;
@@ -583,11 +642,22 @@
                     const data = doc.data();
                     const date = data.timestamp ? data.timestamp.toDate().toLocaleString() : '剛剛';
                     const div = document.createElement('div');
-                    div.style.padding = '10px';
+                    div.style.padding = '15px 10px';
                     div.style.borderBottom = '1px solid #eee';
+                    
+                    const contentPreview = data.content ? data.content.replace(/</g, "&lt;").replace(/>/g, "&gt;") : (data.imageAttached ? '📷 [圖片上傳]' : '');
+                    const feedbackText = data.feedback ? data.feedback.replace(/</g, "&lt;").replace(/>/g, "&gt;") : '無批改資料';
+
                     div.innerHTML = `
-                        <strong>${data.type === 'intellectual' ? '知性題' : '感性題'}</strong> - <span style="color:#888; font-size:0.85rem;">${date}</span>
-                        <p style="margin:5px 0; font-size:0.9rem;">${data.content}</p>
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div style="flex-grow: 1; padding-right: 15px;">
+                                <strong>${data.type === 'intellectual' ? '知性題' : (data.type === 'english' ? '英文作文' : '感性題')}</strong> 
+                                <span style="color:#888; font-size:0.85rem; margin-left:8px;">${date}</span>
+                                <p style="margin:6px 0; font-size:0.9rem; color: #555;">${contentPreview}</p>
+                            </div>
+                            <button onclick="const panel = this.parentElement.nextElementSibling; if(panel.style.display === 'none') { panel.style.display = 'block'; this.textContent = '隱藏評語'; } else { panel.style.display = 'none'; this.textContent = '🔍 展開評語'; }" style="padding: 6px 12px; font-size: 0.85rem; background-color: var(--secondary); white-space: nowrap; box-shadow: none;">🔍 展開評語</button>
+                        </div>
+                        <div style="display: none; margin-top: 15px; background: #fdfbf7; border-left: 4px solid var(--primary); padding: 15px; border-radius: 0 12px 12px 0; white-space: pre-wrap; font-size: 0.95rem; line-height: 1.8;">${feedbackText}</div>
                     `;
                     historyList.appendChild(div);
                 });
